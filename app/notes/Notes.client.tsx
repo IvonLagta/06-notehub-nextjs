@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fetchNotes, createNote, deleteNote } from "@/lib/api";
 import type { Note, NoteTag } from "@/types/note";
 import css from "./NotesPage.module.css";
@@ -14,13 +14,24 @@ import NoteForm from "@/components/NoteForm/NoteForm";
 function NotesClient() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
+
   const [query, setQuery] = useState<string>("");
+  const [debouncedQuery, setDebouncedQuery] = useState<string>("");
 
   const queryClient = useQueryClient();
 
+  // ✅ debounce
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 400); // можно 300–500ms
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
   const { data } = useQuery<{ notes: Note[]; totalPages: number }>({
-    queryKey: ["notes", currentPage, query],
-    queryFn: () => fetchNotes(query, currentPage),
+    queryKey: ["notes", currentPage, debouncedQuery],
+    queryFn: () => fetchNotes(debouncedQuery, currentPage),
     refetchOnMount: false,
   });
 
@@ -89,11 +100,13 @@ function NotesClient() {
           Create note +
         </button>
       </header>
+
       {modalIsOpen && (
         <Modal onClose={onClose}>
           <NoteForm onSubmit={handleCreateNote} onCancel={onClose} />
         </Modal>
       )}
+
       {data?.notes && data.notes.length > 0 && (
         <NoteList notes={data.notes} onDelete={handleDeleteNote} />
       )}
